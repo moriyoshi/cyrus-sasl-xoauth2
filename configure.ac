@@ -19,12 +19,12 @@ AC_ARG_WITH(
 for prefix in "$CYRUS_SASL_PREFIX"; do
   ac_save_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="-I$prefix/include $CPPFLAGS"
-  AC_CHECK_HEADER([sasl/saslplug.h], [
+  AC_CHECK_HEADER([sasl/sasl.h], [
     CYRUS_SASL_CPPFLAGS="-I$prefix/include"
     CYRUS_SASL_PREFIX="$prefix"
   ])
   CPPFLAGS="$ac_save_CPPFLAGS"
-  if test -n "$CYRUS_SASL_CPPFLAGS"; then
+  if test -n "$CYRUS_SASL_PREFIX"; then
     break
   fi
 done

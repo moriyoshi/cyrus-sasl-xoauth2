@@ -5,4 +5,4 @@ pkglibdir = ${CYRUS_SASL_PREFIX}/lib/sasl2
 pkglib_LTLIBRARIES = xoauth2.la
 xoauth2_la_CPPFLAGS = ${CYRUS_SASL_CPPFLAGS}
 xoauth2_la_LDFLAGS = -module
-xoauth2_la_SOURCES = xoauth2.c
+xoauth2_la_SOURCES = xoauth2_str.c xoauth2_init.c xoauth2_server.c xoauth2_client.c
