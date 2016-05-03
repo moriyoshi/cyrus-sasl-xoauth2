@@ -402,7 +402,7 @@ static xoauth2_plugin_server_settings_t xoauth2_server_settings;
 static sasl_server_plug_t xoauth2_server_plugins[] = 
 {
     {
-        "xoauth2",                              /* mech_name */
+        "XOAUTH2",                              /* mech_name */
         0,                                      /* max_ssf */
         SASL_SEC_NOANONYMOUS
         | SASL_SEC_PASS_CREDENTIALS,            /* security_flags */
@@ -431,7 +431,7 @@ int xoauth2_server_plug_init(
     int err;
 
     if (maxversion < SASL_SERVER_PLUG_VERSION) {
-        SETERROR(utils, "xoauth2: version mismatch");
+        SASL_seterror((utils->conn, 0, "xoauth2: version mismatch"));
         return SASL_BADVERS;
     }
 

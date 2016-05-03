@@ -362,7 +362,7 @@ int xoauth2_client_plug_init(
         int *plugcount)
 {
     if (maxversion < SASL_CLIENT_PLUG_VERSION) {
-        SETERROR(utils, "xoauth2: version mismatch");
+        SASL_seterror((utils->conn, 0, "xoauth2: version mismatch"));
         return SASL_BADVERS;
     }
     *out_version = SASL_CLIENT_PLUG_VERSION;
