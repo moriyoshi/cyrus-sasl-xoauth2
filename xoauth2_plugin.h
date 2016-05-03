@@ -36,6 +36,9 @@ typedef struct {
 } xoauth2_plugin_server_context_t;
 
 typedef struct {
+    int state;
+    xoauth2_plugin_auth_response_t resp;
+    xoauth2_plugin_str_t outbuf;
 } xoauth2_plugin_client_context_t;
 
 int xoauth2_plugin_str_init(const sasl_utils_t *utils, xoauth2_plugin_str_t *s);

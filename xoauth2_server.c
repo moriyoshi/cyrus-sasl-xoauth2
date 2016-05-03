@@ -97,7 +97,7 @@ static int build_json_response(const sasl_utils_t *utils, xoauth2_plugin_str_t *
     if (err != SASL_OK) {
         return err;
     }
-    err = append_string(utils, &outbuf, "status", 6);
+    err = append_string(utils, outbuf, "status", 6);
     if (err != SASL_OK) {
         return err;
     }
@@ -180,17 +180,15 @@ static int xoauth2_plugin_server_mech_step1(
 
     {
         char *p, *e, *token_e;
-        resp.buf_size = (clientin_len + 2) * 3 / 4;
-        resp.buf = SASL_malloc(resp.buf_size);
+        resp.buf = SASL_malloc(clientin_len + 1);
         if (!resp.buf) {
             SASL_seterror((utils->conn, 0, "Failed to allocate memory"));
             err = SASL_NOMEM;
             goto out;
         }
-        err = SASL_base64_decode(clientin, clientin_len, resp.buf, resp.buf_size, &resp.buf_size);
-        if (err != SASL_OK) {
-            goto out;
-        }
+        memcpy(resp.buf, clientin, clientin_len);
+        resp.buf[clientin_len] = '\0';
+        resp.buf_size = clientin_len;
 
         p = resp.buf, e = resp.buf + resp.buf_size;
 
@@ -296,7 +294,7 @@ static int xoauth2_plugin_server_mech_step1(
 
     if (!token_is_valid) {
         xoauth2_plugin_str_t outbuf;
-        err = build_json_response(utils, &outbuf, 401, context->settings, &resp);
+        err = build_json_response(utils, &outbuf, "401", context->settings, &resp);
         if (err != SASL_OK) {
             SASL_log((utils->conn, SASL_LOG_ERR, "failed to allocate buffer"));
             goto out;
