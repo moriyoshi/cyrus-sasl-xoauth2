@@ -129,7 +129,7 @@ static int build_json_response(const sasl_utils_t *utils, xoauth2_plugin_str_t *
     if (err != SASL_OK) {
         return err;
     }
-    err = append_string(utils, outbuf, "scope", 6);
+    err = append_string(utils, outbuf, "scope", 5);
     if (err != SASL_OK) {
         return err;
     }
@@ -192,6 +192,12 @@ static int xoauth2_plugin_server_mech_step1(
 
         p = resp.buf, e = resp.buf + resp.buf_size;
 
+        if (e - p < 5 || strncasecmp(p, "user=", 5) != 0) {
+            err = SASL_BADPROT;
+            goto out;
+        }
+        p += 5;
+
         resp.authid = p;
         for (;;) {
             if (p >= e) {
@@ -206,6 +212,13 @@ static int xoauth2_plugin_server_mech_step1(
         *p = '\0';
         resp.authid_len = p - resp.authid;
         ++p;
+
+        if (e - p < 5 || strncasecmp(p, "auth=", 5) != 0) {
+            err = SASL_BADPROT;
+            goto out;
+        }
+
+        p += 5;
 
         resp.token_type = p;
         for (;;) {
@@ -225,7 +238,7 @@ static int xoauth2_plugin_server_mech_step1(
             err = SASL_BADPROT;
             goto out;
         }
-        if (p != e) {
+        if (p + 1 != e) {
             err = SASL_BADPROT;
             goto out;
         }
@@ -234,6 +247,7 @@ static int xoauth2_plugin_server_mech_step1(
         for (;;) {
             if (p >= token_e) {
                 err = SASL_BADPROT;
+                goto out;
             }
             if (*p == ' ') {
                 break;
@@ -247,6 +261,7 @@ static int xoauth2_plugin_server_mech_step1(
         for (;;) {
             if (p >= token_e) {
                 err = SASL_BADPROT;
+                goto out;
             }
             if (*p != ' ') {
                 break;
@@ -257,7 +272,7 @@ static int xoauth2_plugin_server_mech_step1(
         resp.token_len = token_e - resp.token;
     }
 
-    if (resp.token_type_len != 6 || strncmp(resp.token_type, "bearer", 6) != 0) {
+    if (resp.token_type_len != 6 || strncasecmp(resp.token_type, "bearer", 6) != 0) {
         /* not sure if we can return a plain error instead of a challange-impersonated error */
         err = SASL_BADPROT;
         SASL_seterror((utils->conn, 0, "unsupported token type: %s", resp.token_type));
@@ -265,10 +280,16 @@ static int xoauth2_plugin_server_mech_step1(
     }
 
     {
-        static const char * const requests[] = { SASL_AUX_OAUTH2_BEARER_TOKENS, NULL };
+        const char *requests[] = { SASL_AUX_OAUTH2_BEARER_TOKENS, NULL };
         struct propval vals[1];
         const char **p;
         int nprops;
+
+        err = utils->prop_request(params->propctx, requests);
+        if (err != SASL_OK) {
+            SASL_seterror((utils->conn, 0, "failed to retrieve bearer tokens for the user %s", resp.authid));
+            goto out;
+        }
 
         err = params->canon_user(utils->conn, resp.authid, 0, SASL_CU_AUTHID | SASL_CU_AUTHZID, oparams);
         if (err != SASL_OK) {
@@ -276,32 +297,29 @@ static int xoauth2_plugin_server_mech_step1(
             goto out;
         }
 
-        err = utils->prop_request(params->propctx, (const char **)requests);
-        if (err != SASL_OK) {
-            SASL_seterror((utils->conn, 0, "failed to retrieve bearer tokens for the user %s", resp.authid));
-            goto out;
-        }
-        nprops = utils->prop_getnames(params->propctx, (const char **)requests, vals);
-        if (nprops == sizeof(vals) / sizeof(*vals) && vals[0].name) {
+        nprops = utils->prop_getnames(params->propctx, requests, vals);
+        if (nprops == sizeof(vals) / sizeof(*vals) && vals[0].name && vals[0].values) {
             for (p = vals[0].values; *p; ++p) {
                 if (strlen(*p) == resp.token_len && strncmp(*p, resp.token, resp.token_len) == 0) {
                     token_is_valid = 1;
                     break;
                 }
             }
+        } else {
+            SASL_seterror((utils->conn, 0, "no bearer token found for user %s", resp.authid));
+            err = SASL_FAIL;
+            goto out;
         }
     }
 
     if (!token_is_valid) {
-        xoauth2_plugin_str_t outbuf;
-        err = build_json_response(utils, &outbuf, "401", context->settings, &resp);
+        err = build_json_response(utils, &context->outbuf, "401", context->settings, &resp);
         if (err != SASL_OK) {
             SASL_log((utils->conn, SASL_LOG_ERR, "failed to allocate buffer"));
             goto out;
         }
         context->state = 1;
         context->resp = resp, resp.buf = NULL;
-        context->outbuf = outbuf;
         *serverout = context->outbuf.buf;
         *serverout_len = context->outbuf.len;
         err = SASL_CONTINUE;
@@ -374,6 +392,10 @@ static void xoauth2_plugin_server_mech_dispose(void *_context, const sasl_utils_
 {
     xoauth2_plugin_server_context_t *context = _context;
 
+    if (!context) {
+        return;
+    }
+
     if (context->resp.buf) {
         memset(context->resp.buf, 0, context->resp.buf_size);
         SASL_free(context->resp.buf);
@@ -388,11 +410,13 @@ static int xoauth2_server_plug_get_options(sasl_utils_t *utils, xoauth2_plugin_s
     int err;
     err = utils->getopt(
             utils->getopt_context,
-            "xoauth2",
+            "XOAUTH2",
             "xoauth2_scope",
             &settings->scope, &settings->scope_len);
-    if (err != SASL_OK) {
+    if (err != SASL_OK || !settings->scope) {
+        SASL_log((utils->conn, SASL_LOG_NOTE, "xoauth2_scope is not set"));
         settings->scope = "";
+        settings->scope_len = 0;
     }
     return SASL_OK;
 }

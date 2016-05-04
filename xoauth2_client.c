@@ -174,7 +174,7 @@ static int xoauth2_plugin_client_mech_step1(
         }
     }
 
-    if (!authid_wanted) {
+    if (authid_wanted) {
         err = get_cb_value(utils, SASL_CB_AUTHNAME, (const char **)&resp.authid, &resp.authid_len);
         switch (err) {
         case SASL_OK:
@@ -193,7 +193,7 @@ static int xoauth2_plugin_client_mech_step1(
         }
     }
 
-    if (!password_wanted) {
+    if (password_wanted) {
         err = get_cb_value(utils, SASL_CB_PASS, (const char **)&resp.token, &resp.token_len);
         switch (err) {
         case SASL_OK:
@@ -207,6 +207,14 @@ static int xoauth2_plugin_client_mech_step1(
     }
 
     if (!authid_wanted && !password_wanted) {
+        err = params->canon_user(
+                utils->conn, resp.authid, resp.authid_len,
+                SASL_CU_AUTHID | SASL_CU_AUTHZID, oparams);
+        if (err != SASL_OK) {
+            goto out;
+        }
+        resp.token_type = "Bearer";
+        resp.token_type_len = 6;
         err = build_client_response(utils, &context->outbuf, &resp);
         if (err != SASL_OK) {
             goto out;
@@ -215,7 +223,7 @@ static int xoauth2_plugin_client_mech_step1(
         *clientout_len = context->outbuf.len;
         context->state = 1;
     } else {
-        size_t prompts = authid_wanted + password_wanted;
+        const size_t prompts = authid_wanted + password_wanted + 1;
         sasl_interact_t *p;
         prompt_returned = SASL_malloc(sizeof(sasl_interact_t) * prompts);
         if (!prompt_returned) {
@@ -232,6 +240,7 @@ static int xoauth2_plugin_client_mech_step1(
             p->defresult = NULL;
             ++p;
         }
+
         if (password_wanted) {
             p->id = SASL_CB_PASS;
             p->challenge = "Password";
@@ -239,6 +248,10 @@ static int xoauth2_plugin_client_mech_step1(
             p->defresult = NULL;
             ++p;
         }
+        p->id = SASL_CB_LIST_END;
+        p->challenge = NULL;
+        p->prompt = NULL;
+        p->defresult = NULL;
         err = SASL_INTERACT;
     }
 out:
@@ -297,7 +310,7 @@ static int xoauth2_plugin_client_mech_step(
         sasl_out_params_t *oparams)
 {
     xoauth2_plugin_client_context_t *context = _context;
-   
+
     switch (context->state) {
     case 0:
         return xoauth2_plugin_client_mech_step1(
@@ -311,7 +324,7 @@ static int xoauth2_plugin_client_mech_step(
             oparams
         );
     case 1:
-        return xoauth2_plugin_client_mech_step1(
+        return xoauth2_plugin_client_mech_step2(
             context,
             params,
             serverin,
@@ -330,6 +343,11 @@ static void xoauth2_plugin_client_mech_dispose(
         const sasl_utils_t *utils)
 {
     xoauth2_plugin_client_context_t *context = _context;
+
+    if (!context) {
+        return;
+    }
+
     xoauth2_plugin_str_free(utils, &context->outbuf);
     SASL_free(context);
 }
@@ -341,7 +359,8 @@ static sasl_client_plug_t xoauth2_client_plugins[] =
         0,                                  /* max_ssf */
         SASL_SEC_NOANONYMOUS
         | SASL_SEC_PASS_CREDENTIALS,        /* security_flags */
-        SASL_FEAT_WANT_CLIENT_FIRST,        /* features */
+        SASL_FEAT_WANT_CLIENT_FIRST
+        | SASL_FEAT_ALLOWS_PROXY,           /* features */
         NULL,                               /* required_prompts */
         NULL,                               /* glob_context */
         &xoauth2_plugin_client_mech_new,    /* mech_new */
