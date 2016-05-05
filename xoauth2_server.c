@@ -213,6 +213,7 @@ static int xoauth2_plugin_server_mech_step1(
         p = resp.buf, e = resp.buf + resp.buf_size;
 
         if (e - p < 5 || strncasecmp(p, "user=", 5) != 0) {
+            SASL_seterror((utils->conn, 0, "Failed to parse authentication information"));
             err = SASL_BADPROT;
             goto out;
         }
@@ -221,6 +222,7 @@ static int xoauth2_plugin_server_mech_step1(
         resp.authid = p;
         for (;;) {
             if (p >= e) {
+                SASL_seterror((utils->conn, 0, "Failed to parse authentication information"));
                 err = SASL_BADPROT;
                 goto out;
             }
@@ -234,6 +236,7 @@ static int xoauth2_plugin_server_mech_step1(
         ++p;
 
         if (e - p < 5 || strncasecmp(p, "auth=", 5) != 0) {
+            SASL_seterror((utils->conn, 0, "Failed to parse authentication information"));
             err = SASL_BADPROT;
             goto out;
         }
@@ -243,6 +246,7 @@ static int xoauth2_plugin_server_mech_step1(
         resp.token_type = p;
         for (;;) {
             if (p >= e) {
+                SASL_seterror((utils->conn, 0, "Failed to parse authentication information"));
                 err = SASL_BADPROT;
                 goto out;
             }
@@ -255,10 +259,12 @@ static int xoauth2_plugin_server_mech_step1(
         token_e = p;
 
         if (*++p != '\001') {
+            SASL_seterror((utils->conn, 0, "Failed to parse authentication information"));
             err = SASL_BADPROT;
             goto out;
         }
         if (p + 1 != e) {
+            SASL_seterror((utils->conn, 0, "Failed to parse authentication information"));
             err = SASL_BADPROT;
             goto out;
         }
@@ -266,6 +272,7 @@ static int xoauth2_plugin_server_mech_step1(
         p = resp.token_type;
         for (;;) {
             if (p >= token_e) {
+                SASL_seterror((utils->conn, 0, "Failed to parse authentication information"));
                 err = SASL_BADPROT;
                 goto out;
             }
@@ -280,6 +287,7 @@ static int xoauth2_plugin_server_mech_step1(
 
         for (;;) {
             if (p >= token_e) {
+                SASL_seterror((utils->conn, 0, "Failed to parse authentication information"));
                 err = SASL_BADPROT;
                 goto out;
             }
@@ -307,29 +315,28 @@ static int xoauth2_plugin_server_mech_step1(
 
         err = utils->prop_request(params->propctx, requests);
         if (err != SASL_OK) {
+            /* not sure if we can return a plain error instead of a challange-impersonated error at this point */
             SASL_seterror((utils->conn, 0, "failed to retrieve bearer tokens for the user %s", resp.authid));
             goto out;
         }
 
         err = params->canon_user(utils->conn, resp.authid, 0, SASL_CU_AUTHID | SASL_CU_AUTHZID, oparams);
-        if (err != SASL_OK) {
-            SASL_seterror((utils->conn, 0, "failed to canonify user and get auxprops for user %s", resp.authid));
-            goto out;
-        }
-
-        nprops = utils->prop_getnames(params->propctx, requests, vals);
-        if (nprops == sizeof(vals) / sizeof(*vals) && vals[0].name && vals[0].values) {
-            for (p = vals[0].values; *p; ++p) {
-                if (strlen(*p) == resp.token_len && strncmp(*p, resp.token, resp.token_len) == 0) {
-                    token_is_valid = 1;
-                    break;
+        if (err == SASL_OK) {
+            nprops = utils->prop_getnames(params->propctx, requests, vals);
+            if (nprops == sizeof(vals) / sizeof(*vals) && vals[0].name && vals[0].values) {
+                for (p = vals[0].values; *p; ++p) {
+                    if (strlen(*p) == resp.token_len && strncmp(*p, resp.token, resp.token_len) == 0) {
+                        token_is_valid = 1;
+                        break;
+                    }
                 }
+            } else {
+                SASL_log((utils->conn, SASL_LOG_ERR, "no bearer token found for user %s", resp.authid));
             }
         } else {
-            SASL_seterror((utils->conn, 0, "no bearer token found for user %s", resp.authid));
-            err = SASL_FAIL;
-            goto out;
+            SASL_log((utils->conn, SASL_LOG_ERR, "failed to canonify user and get auxprops for user %s", resp.authid));
         }
+
     }
 
     if (!token_is_valid) {
