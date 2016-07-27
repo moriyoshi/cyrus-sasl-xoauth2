@@ -2,7 +2,7 @@
 
 This is a plugin implementation of [XOAUTH2](https://developers.google.com/gmail/xoauth2_protocol).
 
-## Build and installation
+## Building and installation
 
 ```
 ./autogen.sh
@@ -95,8 +95,7 @@ BEGIN TRANSACTION;
 CREATE TABLE users (id INTEGER PRIMARY KEY, name VARCHAR, password VARCHAR, realm VARCHAR);
 INSERT INTO "users" VALUES(1,'test','test','example.com');
 CREATE TABLE props (id INTEGER PRIMARY KEY, user_id INTEGER, name VARCHAR, value VARCHAR, FOREIGN KEY (user_id) REFERENCES users (id));
-INSERT INTO "props" VALUES(1,1,'test','test');
-INSERT INTO "props" VALUES(2,1,'userPassword','*');
-INSERT INTO "props" VALUES(3,1,'oauth2BearerTokens','token');
+INSERT INTO "props" VALUES(1,1,'userPassword','*');
+INSERT INTO "props" VALUES(2,1,'oauth2BearerTokens','token');
 COMMIT;
 ```
