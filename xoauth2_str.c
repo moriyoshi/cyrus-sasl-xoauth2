@@ -41,6 +41,9 @@ int xoauth2_plugin_str_alloc(const sasl_utils_t *utils, xoauth2_plugin_str_t *s,
     if (req_len >= s->size) {
         char *new_buf = s->buf == empty_string ? NULL: s->buf;
         unsigned new_size = s->size + 16;
+        if (new_size < s->size) {
+            return SASL_NOMEM;
+        }
         while (new_size < req_len) {
             unsigned _new_size = new_size + (new_size >> 1);
             if (_new_size < new_size) {

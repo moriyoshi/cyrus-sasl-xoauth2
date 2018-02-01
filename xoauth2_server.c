@@ -64,6 +64,9 @@ static int append_string(const sasl_utils_t *utils, xoauth2_plugin_str_t *outbuf
     const char *p;
     const char *e = v + vlen;
     err = xoauth2_plugin_str_alloc(utils, outbuf, outbuf->len + 2 + vlen * 2);
+    if (err != SASL_OK) {
+        return err;
+    }
     outbuf->buf[outbuf->len++] = '"';
     for (p = v; p < e; ++p) {
         switch (*p) {
