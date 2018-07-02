@@ -31,12 +31,12 @@ CYRUS_SASL_PREFIX=/usr
 
 AC_ARG_WITH(
   [cyrus-sasl],
-  AS_HELP_STRING([--with-cyrus-sasl=[[PREFIX]]], [Installation prefix of Cyrus-SASL]),
-  [CYRUS_SASL_PREFIX=$withval],
-  [CYRUS_SASL_PREFIX=]
+  AS_HELP_STRING([--with-cyrus-sasl=[[PREFIX]]], [Installation prefix of Cyrus-SASL (defaults to /usr)]),
+  [CYRUS_SASL_PREFIXES=$withval],
+  [CYRUS_SASL_PREFIXES=/usr]
 )
 
-for prefix in "$CYRUS_SASL_PREFIX"; do
+for prefix in "$CYRUS_SASL_PREFIXES"; do
   ac_save_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="-I$prefix/include $CPPFLAGS"
   AC_CHECK_HEADER([sasl/sasl.h], [
