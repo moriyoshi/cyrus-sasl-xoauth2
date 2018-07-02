@@ -28,6 +28,14 @@ AC_CONFIG_FILES([Makefile])
 
 CYRUS_SASL_CPPFLAGS=
 CYRUS_SASL_PREFIX=/usr
+CYRUS_SASL_LDFLAGS=
+
+# Cygwin stuff
+case "$host" in
+  *-*-cygwin*)
+    CYRUS_SASL_LDFLAGS=-no-undefined
+    ;;
+esac
 
 AC_ARG_WITH(
   [cyrus-sasl],
@@ -54,5 +62,6 @@ if test -z "$CYRUS_SASL_PREFIX"; then
 fi
 
 AC_SUBST([CYRUS_SASL_CPPFLAGS], [$CYRUS_SASL_CPPFLAGS])
+AC_SUBST([CYRUS_SASL_LDFLAGS], [$CYRUS_SASL_LDFLAGS])
 AC_SUBST([CYRUS_SASL_PREFIX], [$CYRUS_SASL_PREFIX])
 AC_OUTPUT
