@@ -498,7 +498,7 @@ int xoauth2_server_plug_init(
 
     *out_version = SASL_SERVER_PLUG_VERSION;
     *pluglist = xoauth2_server_plugins;
-    *plugcount = 1;  
+    *plugcount = sizeof(xoauth2_server_plugins) / sizeof(*xoauth2_server_plugins);
     
     return SASL_OK;
 }
