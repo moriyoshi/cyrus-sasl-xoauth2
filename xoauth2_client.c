@@ -242,6 +242,7 @@ static int xoauth2_plugin_client_mech_step1(
         *clientout = context->outbuf.buf;
         *clientout_len = context->outbuf.len;
         context->state = 1;
+        err = SASL_CONTINUE;
     } else {
         const size_t prompts = authid_wanted + password_wanted + 1;
         sasl_interact_t *p;
@@ -254,7 +255,7 @@ static int xoauth2_plugin_client_mech_step1(
         memset(prompt_returned, 0, sizeof(sasl_interact_t) * prompts);
         p = prompt_returned;
         if (authid_wanted) {
-            p->id = SASL_CB_USER;
+            p->id = SASL_CB_AUTHNAME;
             p->challenge = "Authentication Name";
             p->prompt = "Authentication ID";
             p->defresult = NULL;
@@ -404,9 +405,11 @@ int xoauth2_client_plug_init(
         SASL_seterror((utils->conn, 0, "xoauth2: version mismatch"));
         return SASL_BADVERS;
     }
+
     *out_version = SASL_CLIENT_PLUG_VERSION;
     *pluglist = xoauth2_client_plugins;
     *plugcount = sizeof(xoauth2_client_plugins) / sizeof(*xoauth2_client_plugins);
+
     return SASL_OK;
 }
 
