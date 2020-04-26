@@ -250,7 +250,7 @@ static int xoauth2_plugin_client_mech_step1(
         if (!prompt_returned) {
             SASL_log((utils->conn, SASL_LOG_ERR, "failed to allocate buffer"));
             err = SASL_NOMEM;
-            return err;
+            goto out;
         }
         memset(prompt_returned, 0, sizeof(sasl_interact_t) * prompts);
         p = prompt_returned;
