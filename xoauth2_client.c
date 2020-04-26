@@ -23,12 +23,51 @@
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+
 #include "xoauth2_plugin.h"
+#include "xoauth2_token_conv.h"
+
+typedef struct _xoauth2_plugin_client_global_context_t {
+    int token_conv_enabled;
+    xoauth2_plugin_token_conv_t token_conv;
+} xoauth2_plugin_client_global_context_t;
+
+static const xoauth2_plugin_token_conv_settings_t settings = {
+    2000, /* connect */
+    2000, /* write */
+    2000  /* read */
+};
+
+static int xoauth2_plugin_client_global_context_init(
+        const sasl_utils_t *utils,
+        xoauth2_plugin_client_global_context_t *glob_context)
+{
+    glob_context->token_conv_enabled = 0;
+    {
+        const char *token_conv_conn_spec = getenv("SASL_XOAUTH2_CLIENT_TOKEN_CONV");
+
+        if (token_conv_conn_spec && strlen(token_conv_conn_spec) != 0) {
+            glob_context->token_conv_enabled = 1;
+            return xoauth2_plugin_token_conv_init(utils, &glob_context->token_conv, &settings, token_conv_conn_spec);
+        }
+    }
+    return SASL_OK;
+}
+
+static void xoauth2_plugin_client_global_context_free(
+        const sasl_utils_t *utils,
+        xoauth2_plugin_client_global_context_t *glob_context)
+{
+    if (glob_context->token_conv_enabled) {
+        xoauth2_plugin_token_conv_free(utils, &glob_context->token_conv);
+    }
+}
 
 static int xoauth2_plugin_client_mech_new(
-        UNUSED(void *glob_context),
+        void *glob_context,
         sasl_client_params_t *params,
         void **pcontext)
 {
@@ -44,10 +83,17 @@ static int xoauth2_plugin_client_mech_new(
 
     context->state = 0;
     context->resp.buf = NULL;
+    context->glob_context = glob_context;
     err = xoauth2_plugin_str_init(utils, &context->outbuf);
     if (err != SASL_OK) {
         SASL_free(context);
-       return err;
+        return err;
+    }
+    err = xoauth2_plugin_str_init(utils, &context->token);
+    if (err != SASL_OK) {
+        xoauth2_plugin_str_free(utils, &context->outbuf);
+        SASL_free(context);
+        return err;
     }
     *pcontext = context;
     return SASL_OK;
@@ -137,7 +183,7 @@ static int get_cb_value(const sasl_utils_t *utils, unsigned id, const char **res
             if (secret->len >= UINT_MAX) {
                 return SASL_BADPROT;
             }
-            *result = secret->data;
+            *result = (const char *)secret->data;
             *result_len = secret->len;
         }
         break;
@@ -224,6 +270,27 @@ static int xoauth2_plugin_client_mech_step1(
         default:
             goto out;
         }
+    }
+
+    if (context->glob_context->token_conv_enabled &&
+        !authid_wanted &&
+            (
+                password_wanted
+                || resp.token_len == 0
+                || (resp.token_len == 1 && strncmp(resp.token, "-", 1) == 0)
+            )) {
+        err = xoauth2_plugin_token_conv_retrieve_access_token(
+                utils,
+                &context->glob_context->token_conv,
+                &context->token,
+                resp.authid,
+                resp.authid_len);
+        if (SASL_OK != err) {
+            goto out;
+        }
+        resp.token = context->token.buf;
+        resp.token_len = context->token.len;
+        password_wanted = 0;
     }
 
     if (!authid_wanted && !password_wanted) {
@@ -369,8 +436,14 @@ static void xoauth2_plugin_client_mech_dispose(
         return;
     }
 
+    xoauth2_plugin_str_free(utils, &context->token);
     xoauth2_plugin_str_free(utils, &context->outbuf);
     SASL_free(context);
+}
+
+static void xoauth2_plugin_client_mech_free(void *glob_context, const sasl_utils_t *utils)
+{
+    xoauth2_plugin_client_global_context_free(utils, (xoauth2_plugin_client_global_context_t *)glob_context);
 }
 
 static sasl_client_plug_t xoauth2_client_plugins[] = 
@@ -387,15 +460,17 @@ static sasl_client_plug_t xoauth2_client_plugins[] =
         &xoauth2_plugin_client_mech_new,    /* mech_new */
         &xoauth2_plugin_client_mech_step,   /* mech_step */
         &xoauth2_plugin_client_mech_dispose,/* mech_dispose */
-        NULL,                               /* mech_free */
+        &xoauth2_plugin_client_mech_free,   /* mech_free */
         NULL,                               /* idle */
         NULL,                               /* spare */
         NULL                                /* spare */
     }
 };
 
+static xoauth2_plugin_client_global_context_t xoauth2_client_global_context;
+
 int xoauth2_client_plug_init(
-        sasl_utils_t *utils,
+        const sasl_utils_t *utils,
         int maxversion,
         int *out_version,
         sasl_client_plug_t **pluglist,
@@ -406,10 +481,18 @@ int xoauth2_client_plug_init(
         return SASL_BADVERS;
     }
 
+    {
+        int err = xoauth2_plugin_client_global_context_init(utils, &xoauth2_client_global_context);
+        if (SASL_OK != err) {
+            SASL_seterror((utils->conn, 0, "xoauth2: global context initialization failed (%d)", err));
+            return SASL_FAIL;
+        }
+        xoauth2_client_plugins[0].glob_context = &xoauth2_client_global_context;
+    }
+
     *out_version = SASL_CLIENT_PLUG_VERSION;
     *pluglist = xoauth2_client_plugins;
     *plugcount = sizeof(xoauth2_client_plugins) / sizeof(*xoauth2_client_plugins);
 
     return SASL_OK;
 }
-

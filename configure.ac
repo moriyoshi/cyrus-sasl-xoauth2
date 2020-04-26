@@ -24,18 +24,27 @@ AC_CONFIG_MACRO_DIR([m4])
 LT_INIT
 AC_PROG_CC
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile tests/Makefile])
 
 CYRUS_SASL_CPPFLAGS=
 CYRUS_SASL_PREFIX=/usr
 CYRUS_SASL_LDFLAGS=
+XOAUTH2_WIN32=
+XOAUTH2_TOKEN_CONV_EXTRA_LIBS=
 
 # Cygwin stuff
 case "$host" in
   *-*-cygwin*)
     CYRUS_SASL_LDFLAGS=-no-undefined
     ;;
+  *-*-mingw32*)
+    CPPFLAGS="${CPPFLAGS} -DXOAUTH2_WIN32 -D_WIN32 -D_WIN32_WINNT=_WIN32_WINNT_VISTA"
+    XOAUTH2_TOKEN_CONV_EXTRA_LIBS="-lws2_32"
+    XOAUTH2_WIN32=1
+    ;;
 esac
+
+AM_CONDITIONAL([XOAUTH2_WIN32], [test x$XOAUTH2_WIN32 != x])
 
 AC_ARG_WITH(
   [cyrus-sasl],
@@ -61,7 +70,14 @@ if test -z "$CYRUS_SASL_PREFIX"; then
   AC_MSG_ERROR([Cyrus-SASL not found under $CYRUS_SASL_PREFIX])
 fi
 
+AC_CHECK_HEADERS([winsock2.h ws2tcpip.h], [], [], [/**/])
+AC_CHECK_HEADERS([alloca.h unistd.h poll.h sys/ioctl.h sys/socket.h sys/types.h sys/uio.h sys/un.h netinet/in.h netinet/in6.h netdb.h])
+
+AC_TYPE_UINT32_T
+
 AC_SUBST([CYRUS_SASL_CPPFLAGS], [$CYRUS_SASL_CPPFLAGS])
 AC_SUBST([CYRUS_SASL_LDFLAGS], [$CYRUS_SASL_LDFLAGS])
 AC_SUBST([CYRUS_SASL_PREFIX], [$CYRUS_SASL_PREFIX])
+AC_SUBST([XOAUTH2_WIN32], [$XOAUTH2_WIN32])
+AC_SUBST([XOAUTH2_TOKEN_CONV_EXTRA_LIBS], [$XOAUTH2_TOKEN_CONV_EXTRA_LIBS])
 AC_OUTPUT

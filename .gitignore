@@ -1,6 +1,8 @@
 aclocal.m4
 autom4te.cache
 compile
+confdefs.h
+conftest.*
 config.guess
 config.h
 config.h.in
@@ -27,3 +29,4 @@ missing
 stamp-h1
 *.swp
 *.swo
+test_xoauth2_token_conv

@@ -435,7 +435,7 @@ static void xoauth2_plugin_server_mech_dispose(void *_context, const sasl_utils_
     SASL_free(context);
 }
 
-static int xoauth2_server_plug_get_options(sasl_utils_t *utils, xoauth2_plugin_server_settings_t *settings)
+static int xoauth2_server_plug_get_options(const sasl_utils_t *utils, xoauth2_plugin_server_settings_t *settings)
 {
     int err;
     err = utils->getopt(
@@ -476,7 +476,7 @@ static sasl_server_plug_t xoauth2_server_plugins[] =
 };
 
 int xoauth2_server_plug_init(
-        sasl_utils_t *utils,
+        const sasl_utils_t *utils,
         int maxversion,
         int *out_version,
         sasl_server_plug_t **pluglist,

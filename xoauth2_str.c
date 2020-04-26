@@ -87,4 +87,3 @@ void xoauth2_plugin_str_free(const sasl_utils_t *utils, xoauth2_plugin_str_t *s)
         s->len = s->size = 0;
     }
 }
-
