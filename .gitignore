@@ -25,3 +25,5 @@ missing
 *.o
 *.so
 stamp-h1
+*.swp
+*.swo
