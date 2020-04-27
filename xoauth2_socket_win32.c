@@ -173,8 +173,8 @@ static int xoauth2_plugin_win32_socket_read(const sasl_utils_t *utils, xoauth2_p
     WSABUF *wsiv, *e_wsiv;
 
     /* Roll to (INT_MAX + 1) / 16 - 1 */
-    if (nivs > (((uint32_t)-1) >> 5)) {
-        nivs = (((uint32_t)-1) >> 5);
+    if (nivs > (((uint32_t)-1) >> 4)) {
+        nivs = (((uint32_t)-1) >> 4);
     }
 
     if (sizeof(WSABUF) * nivs < nivs) {
@@ -190,16 +190,14 @@ static int xoauth2_plugin_win32_socket_read(const sasl_utils_t *utils, xoauth2_p
         const xoauth2_plugin_socket_iovec_t *p, *e = iv + nivs;
         total_sz = 0;
         for (p = iv, e = iv + nivs; p < e; p++) {
-            p_wsiv->len = p->iov_len;
-            p_wsiv->buf = p->iov_base;
             if (total_sz + p->iov_len < total_sz) {
-                total_sz = (((uint32_t)-1) >> 1);
                 break;
             }
             if (total_sz > (((uint32_t)-1) >> 1)) {
-                total_sz = (((uint32_t)-1) >> 1);
                 break;
             }
+            p_wsiv->len = p->iov_len;
+            p_wsiv->buf = p->iov_base;
             total_sz += p->iov_len;
             ++p_wsiv;
         }
@@ -259,7 +257,7 @@ static int xoauth2_plugin_win32_socket_read(const sasl_utils_t *utils, xoauth2_p
                     goto out;
                 }
             }
-            wsc = WSARecv(s->s, wsiv, (DWORD)nivs, &n, &flags, NULL, NULL);
+            wsc = WSARecv(s->s, p_wsiv, (DWORD)(e_wsiv - p_wsiv), &n, &flags, NULL, NULL);
             first = 0;
             if (SOCKET_ERROR == wsc) {
                 int _errno = WSAGetLastError();
@@ -286,7 +284,6 @@ static int xoauth2_plugin_win32_socket_read(const sasl_utils_t *utils, xoauth2_p
             while (n > p_wsiv->len) {
                 n -= p_wsiv->len;
                 ++p_wsiv;
-                --nivs;
             }
             *((unsigned char **)&p_wsiv->buf) += n;
             p_wsiv->len -= n;
@@ -306,8 +303,8 @@ static int xoauth2_plugin_win32_socket_write(const sasl_utils_t *utils, xoauth2_
     WSABUF *wsiv, *e_wsiv;
 
     /* Roll to (INT_MAX + 1) / 16 - 1 */
-    if (nivs > (((uint32_t)-1) >> 5)) {
-        nivs = (((uint32_t)-1) >> 5);
+    if (nivs > (((uint32_t)-1) >> 4)) {
+        nivs = (((uint32_t)-1) >> 4);
     }
 
     if (sizeof(WSABUF) * nivs < nivs) {
@@ -323,16 +320,14 @@ static int xoauth2_plugin_win32_socket_write(const sasl_utils_t *utils, xoauth2_
         const xoauth2_plugin_socket_iovec_t *p, *e = iv + nivs;
         total_sz = 0;
         for (p = iv, e = iv + nivs; p < e; p++) {
-            p_wsiv->len = p->iov_len;
-            p_wsiv->buf = p->iov_base;
             if (total_sz + p->iov_len < total_sz) {
-                total_sz = (((uint32_t)-1) >> 1);
                 break;
             }
             if (total_sz > (((uint32_t)-1) >> 1)) {
-                total_sz = (((uint32_t)-1) >> 1);
                 break;
             }
+            p_wsiv->len = p->iov_len;
+            p_wsiv->buf = p->iov_base;
             total_sz += p->iov_len;
             ++p_wsiv;
         }
@@ -384,7 +379,7 @@ static int xoauth2_plugin_win32_socket_write(const sasl_utils_t *utils, xoauth2_
                     goto out;
                 }
             }
-            if (SOCKET_ERROR == WSASend(s->s, p_wsiv, (DWORD)nivs, &n, 0, NULL, NULL)) {
+            if (SOCKET_ERROR == WSASend(s->s, p_wsiv, (DWORD)(e_wsiv - p_wsiv), &n, 0, NULL, NULL)) {
                 int _errno = WSAGetLastError();
                 if (WSAEWOULDBLOCK == _errno) {
                     continue;

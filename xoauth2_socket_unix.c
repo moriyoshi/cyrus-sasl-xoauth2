@@ -158,26 +158,24 @@ static int xoauth2_plugin_unix_socket_read(const sasl_utils_t *utils, xoauth2_pl
     unsigned total_sz;
     const xoauth2_plugin_socket_iovec_t *e;
 
-    /* Roll to INT_MAX */
-    if (nivs > (((uint32_t)-1) >> 1)) {
-        nivs = (((uint32_t)-1) >> 1);
+    /* Roll to (INT_MAX + 1) / 16 - 1 */
+    if (nivs > (((uint32_t)-1) >> 4)) {
+        nivs = (((uint32_t)-1) >> 4);
     }
 
-    e = iv + nivs;
     {
         const xoauth2_plugin_socket_iovec_t *p;
         total_sz = 0;
         for (p = iv, e = iv + nivs; p < e; p++) {
             if (total_sz + p->iov_len < total_sz) {
-                total_sz = (((uint32_t)-1) >> 1);
                 break;
             }
             if (total_sz > (((uint32_t)-1) >> 1)) {
-                total_sz = (((uint32_t)-1) >> 1);
                 break;
             }
             total_sz += p->iov_len;
         }
+        e = p;
     }
 
     if (!minread) {
@@ -204,7 +202,7 @@ static int xoauth2_plugin_unix_socket_read(const sasl_utils_t *utils, xoauth2_pl
                     return SASL_FAIL;
                 }
             }
-            n = readv(s->s, (struct iovec *)iv, nivs);
+            n = readv(s->s, (struct iovec *)iv, e - iv);
             first = 0;
             if (-1 == n) {
                 if (EWOULDBLOCK == errno) {
@@ -226,7 +224,6 @@ static int xoauth2_plugin_unix_socket_read(const sasl_utils_t *utils, xoauth2_pl
             while (n > iv->iov_len) {
                 n -= iv->iov_len;
                 ++iv;
-                --nivs;
             }
             *((unsigned char **)&iv->iov_base) += n;
             iv->iov_len -= n;
@@ -240,26 +237,24 @@ static int xoauth2_plugin_unix_socket_write(const sasl_utils_t *utils, xoauth2_p
     size_t total_sz;
     const xoauth2_plugin_socket_iovec_t *e;
 
-    /* Roll to INT_MAX */
-    if (nivs > (((uint32_t)-1) >> 1)) {
-        nivs = (((uint32_t)-1) >> 1);
+    /* Roll to (INT_MAX + 1) / 16 - 1 */
+    if (nivs > (((uint32_t)-1) >> 4)) {
+        nivs = (((uint32_t)-1) >> 4);
     }
 
-    e = iv + nivs;
     {
         const xoauth2_plugin_socket_iovec_t *p;
         total_sz = 0;
         for (p = iv, e = iv + nivs; p < e; p++) {
             if (total_sz + p->iov_len < total_sz) {
-                total_sz = (((uint32_t)-1) >> 1);
                 break;
             }
             if (total_sz > (((uint32_t)-1) >> 1)) {
-                total_sz = (((uint32_t)-1) >> 1);
                 break;
             }
             total_sz += p->iov_len;
         }
+        e = p;
     }
 
     *nwritten = 0;
@@ -280,7 +275,7 @@ static int xoauth2_plugin_unix_socket_write(const sasl_utils_t *utils, xoauth2_p
                     return SASL_FAIL;
                 }
             }
-            n = writev(s->s, (struct iovec *)iv, nivs);
+            n = writev(s->s, (struct iovec *)iv, e - iv);
             if (-1 == n) {
                 if (EWOULDBLOCK == errno) {
                     continue;
@@ -297,7 +292,6 @@ static int xoauth2_plugin_unix_socket_write(const sasl_utils_t *utils, xoauth2_p
             while (n > iv->iov_len) {
                 n -= iv->iov_len;
                 ++iv;
-                --nivs;
             }
             *((unsigned char **)&iv->iov_base) += n;
             iv->iov_len -= n;
