@@ -55,10 +55,14 @@ typedef struct {
     xoauth2_plugin_str_t outbuf;
 } xoauth2_plugin_server_context_t;
 
+typedef struct _xoauth2_plugin_client_global_context_t xoauth2_plugin_client_global_context_t;
+
 typedef struct {
+    xoauth2_plugin_client_global_context_t *glob_context;
     int state;
     xoauth2_plugin_auth_response_t resp;
     xoauth2_plugin_str_t outbuf;
+    xoauth2_plugin_str_t token;
 } xoauth2_plugin_client_context_t;
 
 int xoauth2_plugin_str_init(const sasl_utils_t *utils, xoauth2_plugin_str_t *s);
@@ -67,14 +71,14 @@ int xoauth2_plugin_str_append(const sasl_utils_t *utils, xoauth2_plugin_str_t *s
 void xoauth2_plugin_str_free(const sasl_utils_t *utils, xoauth2_plugin_str_t *s);
 
 int xoauth2_server_plug_init(
-        sasl_utils_t *utils,
+        const sasl_utils_t *utils,
         int maxversion,
         int *out_version,
         sasl_server_plug_t **pluglist,
         int *plugcount);
 
 int xoauth2_client_plug_init(
-        sasl_utils_t *utils,
+        const sasl_utils_t *utils,
         int maxversion,
         int *out_version,
         sasl_client_plug_t **pluglist,
