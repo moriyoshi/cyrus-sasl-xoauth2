@@ -93,9 +93,9 @@ static int ws2_strerror(int _errno, char *buf, size_t buf_size)
     return 0;
 }
 
-static int addrinfo_error_to_sasl_code(int ws2s)
+static int addrinfo_error_to_sasl_code(int eai)
 {
-    switch (ws2s) {
+    switch (eai) {
     case 0:
         return SASL_OK;
     case EAI_AGAIN:

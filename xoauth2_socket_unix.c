@@ -91,9 +91,9 @@ typedef struct _xoauth2_plugin_unix_socket_t {
     int s;
 } xoauth2_plugin_unix_socket_t;
 
-static int addrinfo_error_to_sasl_code(int ws2s)
+static int addrinfo_error_to_sasl_code(int eai)
 {
-    switch (ws2s) {
+    switch (eai) {
     case 0:
         return SASL_OK;
     case EAI_AGAIN:
