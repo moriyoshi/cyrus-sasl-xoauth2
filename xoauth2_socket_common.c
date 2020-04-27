@@ -106,25 +106,25 @@ static enum xoauth2_plugin_af xoauth2_family_str_to_i(const char *family)
 {
     if (strcasecmp(family, "unix") == 0) {
 #if defined(XOAUTH2_WIN32) && !defined(__CYGWIN__)
-        return XOAUTH2_PLUGIN_XOAUTH2_WIN32_AF_UNIX;
+        return XOAUTH2_PLUGIN_WIN32_AF_UNIX;
 #else
         return XOAUTH2_PLUGIN_UNIX_AF_UNIX;
 #endif
     } else if (strcasecmp(family, "tcp") == 0) {
 #if defined(XOAUTH2_WIN32) && !defined(__CYGWIN__)
-        return XOAUTH2_PLUGIN_XOAUTH2_WIN32_AF_UNSPEC;
+        return XOAUTH2_PLUGIN_WIN32_AF_UNSPEC;
 #else
         return XOAUTH2_PLUGIN_UNIX_AF_UNSPEC;
 #endif
     } else if (strcasecmp(family, "tcp4") == 0) {
 #if defined(XOAUTH2_WIN32) && !defined(__CYGWIN__)
-        return XOAUTH2_PLUGIN_XOAUTH2_WIN32_AF_INET;
+        return XOAUTH2_PLUGIN_WIN32_AF_INET;
 #else
         return XOAUTH2_PLUGIN_UNIX_AF_INET;
 #endif
     } else if (strcasecmp(family, "tcp6") == 0) {
 #if defined(XOAUTH2_WIN32) && !defined(__CYGWIN__)
-        return XOAUTH2_PLUGIN_XOAUTH2_WIN32_AF_INET6;
+        return XOAUTH2_PLUGIN_WIN32_AF_INET6;
 #else
         return XOAUTH2_PLUGIN_UNIX_AF_INET6;
 #endif
