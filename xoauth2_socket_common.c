@@ -36,31 +36,44 @@
 int xoauth2_plugin_host_port_pair_new(const sasl_utils_t *utils, xoauth2_plugin_host_port_pair_t **retval, const char *host_port_pair, const char *default_service)
 {
     xoauth2_plugin_host_port_pair_t *hp;
-    size_t n = strlen(host_port_pair) + 1;
-    const char *p = strchr(host_port_pair, ':');
-    char *s;
-    if (p) {
-        hp = SASL_malloc(sizeof(xoauth2_plugin_host_port_pair_t) + n);
-        if (!hp) {
-            return SASL_NOMEM;
-        }
-        s = (char *)(hp + 1);
-        memcpy(s, host_port_pair, n);
-        s[p - host_port_pair] = '\0';
-        hp->host = s;
-        hp->port_or_service = s + (p - host_port_pair) + 1;
+    const char *e_host_port_pair = host_port_pair + strlen(host_port_pair),
+            *host_part = NULL, *e_host_part = NULL, *col = NULL;
+
+    if (*host_port_pair == '[' && (e_host_part = strchr(host_port_pair + 1, ']'))) {
+        host_part = host_port_pair + 1;
+        col = strchr(e_host_part + 1, ':');
     } else {
-        size_t nn = strlen(default_service) + 1;
-        hp = SASL_malloc(sizeof(xoauth2_plugin_host_port_pair_t) + n + nn);
+        host_part = host_port_pair;
+        col = strchr(host_port_pair, ':');
+        e_host_part = col ? col : e_host_port_pair;
+    }
+
+    if (col) {
+        char *s;
+        hp = SASL_malloc(sizeof(xoauth2_plugin_host_port_pair_t) + (e_host_port_pair - host_port_pair + 1));
         if (!hp) {
             return SASL_NOMEM;
         }
         s = (char *)(hp + 1);
-        memcpy(s, host_port_pair, n);
-        s[n - 1] = '\0';
-        memcpy(s + n, default_service, nn);
+        memcpy(s, host_part, e_host_part - host_part);
+        s[e_host_part - host_part] = '\0';
         hp->host = s;
-        hp->port_or_service = s + n;
+        memcpy(s + (e_host_part - host_part) + 1, col + 1, (e_host_port_pair - col));
+        hp->port_or_service = s + (e_host_part - host_part) + 1;
+    } else {
+        char *s;
+        size_t nn = strlen(default_service) + 1;
+        hp = SASL_malloc(sizeof(xoauth2_plugin_host_port_pair_t) + (e_host_port_pair - host_port_pair + 1) + nn);
+        if (!hp) {
+            return SASL_NOMEM;
+        }
+        s = (char *)(hp + 1);
+        memcpy(s, host_part, e_host_part - host_part);
+        s[e_host_part - host_part] = '\0';
+        hp->host = s;
+        memcpy(s + (e_host_part - host_part) + 1, default_service, nn);
+        hp->host = s;
+        hp->port_or_service = s + (e_host_part - host_part) + 1;
     }
     *retval = hp;
     return SASL_OK;

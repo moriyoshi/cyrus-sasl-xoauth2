@@ -32,12 +32,20 @@ async def main():
     )
     server2 = await asyncio.start_unix_server(
         handler,
+        family=socket.AF_INET6,
+        host="::",
+        port=65321,
+    )
+    server3 = await asyncio.start_unix_server(
+        handler,
         path="/tmp/test.sock",
     )
     await server1.start_serving()
     await server2.start_serving()
+    await server3.start_serving()
     await server1.wait_closed()
     await server2.wait_closed()
+    await server3.wait_closed()
 
 
 asyncio.run(main())
