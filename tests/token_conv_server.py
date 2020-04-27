@@ -30,7 +30,7 @@ async def main():
         host="127.0.0.1",
         port=65321,
     )
-    server2 = await asyncio.start_unix_server(
+    server2 = await asyncio.start_server(
         handler,
         family=socket.AF_INET6,
         host="::",
